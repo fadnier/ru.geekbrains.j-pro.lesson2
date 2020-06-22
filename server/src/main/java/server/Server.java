@@ -4,17 +4,21 @@ package server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 
 public class Server {
     private List<ClientHandler> clients;
     private AuthService authService;
+    private MessageService messageService;
 
     public Server() {
         clients = new Vector<>();
-        authService = new SimpleAuthService();
+        authService = new SqliteAuthService();
+        messageService = new SqliteMessageService();
         ServerSocket server = null;
         Socket socket;
 
@@ -41,7 +45,8 @@ public class Server {
         }
     }
 
-    public void broadcastMsg(String nick, String msg) {
+    public void broadcastMsg(String nick, String msg, ClientHandler sender) {
+        messageService.addMessage(msg,0,sender.getId());
         for (ClientHandler c : clients) {
             c.sendMsg(nick + ": " + msg);
         }
@@ -54,6 +59,7 @@ public class Server {
         for (ClientHandler c : clients) {
             if (c.getNick().equals(receiver)) {
                 c.sendMsg(message);
+                messageService.addMessage(message,c.getId(),sender.getId());
                 if (!sender.getNick().equals(receiver)) {
                     sender.sendMsg(message);
                 }
@@ -68,6 +74,12 @@ public class Server {
     public void subscribe(ClientHandler clientHandler) {
         clients.add(clientHandler);
         broadcastClientList();
+        
+        Map<Integer,String> msg = messageService.getAllMessage(clientHandler.getId());
+
+        for (Map.Entry<Integer,String> entry: msg.entrySet()) {
+            clientHandler.sendMsg(entry.getValue());
+        }
     }
 
     public void unsubscribe(ClientHandler clientHandler) {
@@ -88,7 +100,7 @@ public class Server {
         return false;
     }
 
-    private void broadcastClientList() {
+    public void broadcastClientList() {
         StringBuilder sb = new StringBuilder("/clientlist ");
 
         for (ClientHandler c : clients) {
