@@ -41,6 +41,8 @@ public class Controller implements Initializable {
     public HBox msgPanel;
     @FXML
     public ListView<String> clientList;
+    @FXML
+    public TextField nickNameArea;
 
     Stage regStage;
 
@@ -62,11 +64,14 @@ public class Controller implements Initializable {
         msgPanel.setVisible(authenticated);
         clientList.setVisible(authenticated);
         clientList.setManaged(authenticated);
+        nickNameArea.setVisible(authenticated);
+        nickNameArea.setManaged(authenticated);
         if (!authenticated) {
             nick = "";
         }
         textArea.clear();
         setTitle(nick);
+        nickNameArea.setText(nick);
     }
 
     @Override
@@ -240,4 +245,17 @@ public class Controller implements Initializable {
 
     }
 
+    public void sendChangeNickName(ActionEvent actionEvent) {
+        String msg = String.format("/changename %s", nickNameArea.getText().trim());
+
+        if (socket == null || socket.isClosed()) {
+            connect();
+        }
+
+        try {
+            out.writeUTF(msg);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

@@ -14,6 +14,7 @@ public class ClientHandler {
 
     private String nick;
     private String login;
+    private int id;
 
     public ClientHandler(Server server, Socket socket) {
         this.server = server;
@@ -56,15 +57,18 @@ public class ClientHandler {
                                 continue;
                             }
 
-                            String newNick = server.getAuthService()
-                                    .getNicknameByLoginAndPassword(token[1], token[2]);
+                            String[] authParam = server.getAuthService()
+                                    .getAuthByLoginAndPassword(token[1], token[2]);
 
                             login = token[1];
 
-                            if (newNick != null) {
+                            if (authParam != null) {
+                                String newNick = authParam[1];
+
                                 if (!server.isLoginAuthorized(login)) {
                                     sendMsg("/authok " + newNick);
                                     nick = newNick;
+                                    id = Integer.parseInt(authParam[2]);
                                     server.subscribe(this);
                                     System.out.println("Клиент: " + nick + " подключился"+ socket.getRemoteSocketAddress());
                                     socket.setSoTimeout(0);
@@ -87,6 +91,20 @@ public class ClientHandler {
                                 sendMsg("/end");
                                 break;
                             }
+                            if (str.startsWith("/changename ")) {
+                                String[] token = str.split(" ", 2);
+
+                                if (token.length < 2) {
+                                    continue;
+                                }
+
+                                if(server.getAuthService().changeNickname(id,token[1])) {
+                                    this.nick = token[1];
+                                    server.broadcastClientList();
+                                } else {
+                                    sendMsg("Не удалось изменить имя, возможно уже используется");
+                                }
+                            }
                             if (str.startsWith("/w ")) {
                                 String[] token = str.split(" ", 3);
 
@@ -97,7 +115,7 @@ public class ClientHandler {
                                 server.privateMsg(this, token[1], token[2]);
                             }
                         } else {
-                            server.broadcastMsg(nick, str);
+                            server.broadcastMsg(nick, str, this);
                         }
                     }
                 }catch (SocketTimeoutException e){
@@ -137,5 +155,9 @@ public class ClientHandler {
 
     public String getLogin() {
         return login;
+    }
+
+    public int getId() {
+        return id;
     }
 }
